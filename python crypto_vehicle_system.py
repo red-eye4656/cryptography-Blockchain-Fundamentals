@@ -1,11 +1,21 @@
 import hashlib
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    PrivateFormat,
+    NoEncryption,
+    PublicFormat
+)
 
+# ==============================
+# Vehicle Registration Database
+# ==============================
+vehicles = {}
 
-# -----------------------------
-# Digital Signature Setup
-# -----------------------------
+# ==============================
+# Generate RSA Key Pair
+# ==============================
 private_key = rsa.generate_private_key(
     public_exponent=65537,
     key_size=2048
@@ -13,45 +23,40 @@ private_key = rsa.generate_private_key(
 
 public_key = private_key.public_key()
 
-
-# -----------------------------
-# Vehicle Registration Storage
-# -----------------------------
-vehicles = {}
-
-
-# -----------------------------
-# SHA-256 Hash Function
-# -----------------------------
+# ==============================
+# SHA-256 Hashing Function
+# ==============================
 def generate_hash():
     message = input("Enter message to hash: ")
-    sha_hash = hashlib.sha256(message.encode()).hexdigest()
+
+    sha256_hash = hashlib.sha256(message.encode()).hexdigest()
+
     print("\nSHA-256 Hash:")
-    print(sha_hash)
+    print(sha256_hash)
 
 
-# -----------------------------
-# Digital Signature Function
-# -----------------------------
+# ==============================
+# Digital Signature Functions
+# ==============================
 def sign_message():
     message = input("Enter message to sign: ")
 
     signature = private_key.sign(
         message.encode(),
-        padding.PKCS1v15(),
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
         hashes.SHA256()
     )
 
-    print("\nMessage signed successfully.")
+    print("\nMessage Signed Successfully!")
     print("Signature (hex):")
     print(signature.hex())
 
     return message, signature
 
 
-# -----------------------------
-# Signature Verification
-# -----------------------------
 def verify_signature():
     message = input("Enter original message: ")
     signature_hex = input("Enter signature (hex): ")
@@ -62,66 +67,70 @@ def verify_signature():
         public_key.verify(
             signature,
             message.encode(),
-            padding.PKCS1v15(),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
             hashes.SHA256()
         )
 
-        print("Signature is VALID.")
+        print("\n✅ Signature is VALID")
 
     except Exception:
-        print("Signature is INVALID.")
+        print("\n❌ Signature is INVALID")
 
 
-# -----------------------------
-# Register Vehicle
-# -----------------------------
+# ==============================
+# Vehicle Registration Functions
+# ==============================
 def register_vehicle():
-    plate = input("Enter Number Plate: ").upper()
+    number_plate = input("Enter Number Plate: ").upper()
 
-    if plate in vehicles:
-        print("Vehicle already registered.")
+    # Check duplicate number plate
+    if number_plate in vehicles:
+        print("\n❌ Vehicle with this Number Plate already exists.")
         return
 
     owner = input("Enter Owner Name: ")
     model = input("Enter Vehicle Model: ")
 
-    vehicles[plate] = {
+    vehicles[number_plate] = {
         "owner": owner,
         "model": model
     }
 
-    print("Vehicle registered successfully.")
+    print("\n✅ Vehicle Registered Successfully!")
 
 
-# -----------------------------
-# Retrieve Vehicle
-# -----------------------------
 def get_vehicle():
-    plate = input("Enter Number Plate: ").upper()
+    number_plate = input("Enter Number Plate to search: ").upper()
 
-    if plate not in vehicles:
-        print("Vehicle not found.")
-        return
+    if number_plate in vehicles:
+        vehicle = vehicles[number_plate]
 
-    print("\nVehicle Details:")
-    print(f"Owner: {vehicles[plate]['owner']}")
-    print(f"Model: {vehicles[plate]['model']}")
+        print("\nVehicle Details")
+        print("-------------------")
+        print(f"Owner : {vehicle['owner']}")
+        print(f"Model : {vehicle['model']}")
+
+    else:
+        print("\n❌ Vehicle not found.")
 
 
-# -----------------------------
+# ==============================
 # Main Menu
-# -----------------------------
+# ==============================
 def main():
     while True:
-        print("\n===== Cryptography and Vehicle Registration System =====")
+        print("\n========== MENU ==========")
         print("1. Generate SHA-256 Hash")
-        print("2. Create Digital Signature")
+        print("2. Sign Message")
         print("3. Verify Digital Signature")
         print("4. Register Vehicle")
-        print("5. Retrieve Vehicle")
+        print("5. Retrieve Vehicle Details")
         print("6. Exit")
 
-        choice = input("Enter your choice: ")
+        choice = input("\nEnter your choice: ")
 
         if choice == "1":
             generate_hash()
@@ -139,12 +148,13 @@ def main():
             get_vehicle()
 
         elif choice == "6":
-            print("Exiting program...")
+            print("\nExiting Program...")
             break
 
         else:
-            print("Invalid choice. Please try again.")
+            print("\n❌ Invalid choice. Try again.")
 
 
+# Run Program
 if __name__ == "__main__":
     main()
